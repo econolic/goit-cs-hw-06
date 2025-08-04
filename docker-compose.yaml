@@ -1,0 +1,43 @@
+# Docker Compose конфігурація для вебзастосунку з сокетами та MongoDB
+
+services:
+  web:
+    build: .
+    ports:
+      - "${HTTP_EXTERNAL_PORT:-8000}:${HTTP_PORT:-3000}"  # HTTP сервер
+      - "${SOCKET_EXTERNAL_PORT:-8001}:${SOCKET_PORT:-5000}"  # Socket сервер
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - HTTP_PORT=${HTTP_PORT:-3000}
+      - SOCKET_PORT=${SOCKET_PORT:-5000}
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+    restart: unless-stopped
+    # Health check для кращого контролю залежностей
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
